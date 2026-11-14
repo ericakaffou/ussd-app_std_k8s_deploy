@@ -69,6 +69,8 @@ spec:
           persistentVolumeClaim:
             claimName: ussdapp1-pvc
 
+            
+
 ---
 # ==========================================
 # APP1 SERVICE

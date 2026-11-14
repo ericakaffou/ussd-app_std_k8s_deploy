@@ -1,4 +1,3 @@
-
 ---
 # ==========================================
 # APP1 DEPLOYMENT
@@ -26,7 +25,7 @@ spec:
         - name: wait-for-postgres
           image: postgres:15
           imagePullPolicy: IfNotPresent
-          
+
           env:
             - name: DB_PASSWORD
               valueFrom:
@@ -41,7 +40,7 @@ spec:
               echo "Attente de PostgreSQL..."
 
               timeout=120
-          
+
               until PGPASSWORD="$DB_PASSWORD" psql \
                 -h 192.168.1.33 \
                 -p 5432 \
@@ -53,12 +52,12 @@ spec:
                   echo "ERREUR : Base vasdb_ussd-test inaccessible après 120 secondes"
                   exit 1
                 fi
-          
+
                 echo "PostgreSQL ou la base vasdb_ussd-test n'est pas disponible..."
                 sleep 2
                 timeout=$((timeout - 2))
               done
-          
+
               echo "Connexion à vasdb_ussd-test réussie !"
 
       imagePullSecrets:
@@ -75,14 +74,13 @@ spec:
           volumeMounts:
             - name: ussdapp1-volume
               mountPath: /mnt/data/ussdapp1-data
-#
-# Avec env : on overwrite les parametres springboot de application.properties
-#
+          #
+          # Avec env : on overwrite les parametres springboot de application.properties
+          #
           env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://192.168.1.33:5432/vasdb_ussd-prod
 
-           
       volumes:
         - name: ussdapp1-volume
           persistentVolumeClaim:
