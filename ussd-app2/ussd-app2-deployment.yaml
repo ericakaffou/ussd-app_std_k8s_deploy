@@ -1,0 +1,94 @@
+
+---
+# ==========================================
+# APP1 DEPLOYMENT wazazlove
+# ==========================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ussd-app2-deployment
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ussd-app2
+
+  template:
+    metadata:
+      labels:
+        app: ussd-app2
+
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              timeout=120
+
+              until pg_isready -h 192.168.1.33 -p 5432 -U ussd_user -d vasdb_ussd
+              do
+                if [ "$timeout" -le 0 ]; then
+                  echo "ERREUR : PostgreSQL inaccessible après 120 secondes"
+                  exit 1
+                fi
+
+                sleep 2
+                timeout=$((timeout - 2))
+              done
+
+      imagePullSecrets:
+        - name: registry-secret
+
+      containers:
+        - name: ussd-app2
+          image: 192.168.1.15:5000/ussd-app2:1.0.0
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 9092
+
+          volumeMounts:
+            - name: ussdapp1-volume
+              mountPath: /mnt/data/ussdapp1-data
+#
+# Avec env : on overwrite les parametres springboot de application.properties
+#
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://192.168.1.33:5432/vasdb_ussd-prod
+
+      volumes:
+        - name: ussdapp1-volume
+          persistentVolumeClaim:
+            claimName: ussdapp1-pvc
+
+            
+
+---
+# ==========================================
+# APP1 SERVICE
+# ==========================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ussd-app2-service
+
+spec:
+  type: NodePort
+
+  selector:
+    app: ussd-app2
+
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9092
+      nodePort: 32002
