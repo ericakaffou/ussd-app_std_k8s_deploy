@@ -1,0 +1,111 @@
+
+---
+# ==========================================
+# APP1 DEPLOYMENT
+# ==========================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ussd-app1-deployment
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ussd-app1
+
+  template:
+    metadata:
+      labels:
+        app: ussd-app1
+
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          imagePullPolicy: IfNotPresent
+          
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: POSTGRES_PASSWORD
+
+          command:
+            - sh
+            - -c
+            - |
+              echo "Attente de PostgreSQL..."
+
+              timeout=120
+          
+              until PGPASSWORD="$DB_PASSWORD" psql \
+                -h 192.168.1.33 \
+                -p 5432 \
+                -U ussd_user \
+                -d vasdb_ussd-prod \
+                -c "SELECT 1" > /dev/null 2>&1
+              do
+                if [ "$timeout" -le 0 ]; then
+                  echo "ERREUR : Base vasdb_ussd-test inaccessible après 120 secondes"
+                  exit 1
+                fi
+          
+                echo "PostgreSQL ou la base vasdb_ussd-test n'est pas disponible..."
+                sleep 2
+                timeout=$((timeout - 2))
+              done
+          
+              echo "Connexion à vasdb_ussd-test réussie !"
+
+      imagePullSecrets:
+        - name: registry-secret
+
+      containers:
+        - name: ussd-app1
+          image: 192.168.1.15:5000/ussd-app1:1.0.0
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 9091
+
+          volumeMounts:
+            - name: ussdapp1-volume
+              mountPath: /mnt/data/ussdapp1-data
+#
+# Avec env : on overwrite les parametres springboot de application.properties
+#
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://192.168.1.33:5432/vasdb_ussd-prod
+
+           
+      volumes:
+        - name: ussdapp1-volume
+          persistentVolumeClaim:
+            claimName: ussdapp1-pvc
+
+---
+# ==========================================
+# APP1 SERVICE
+# ==========================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ussd-app1-service
+
+spec:
+  type: NodePort
+
+  selector:
+    app: ussd-app1
+
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9091
+      nodePort: 32001

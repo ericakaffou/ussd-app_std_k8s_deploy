@@ -1,0 +1,51 @@
+
+# ==========================================
+# PERSISTENT VOLUME
+# ==========================================
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ussdapp1-pv
+  labels:
+    name: ussdapp1-pv
+
+spec:
+  capacity:
+    storage: 3Gi
+
+  volumeMode: Filesystem
+
+  accessModes:
+    - ReadWriteMany
+
+  persistentVolumeReclaimPolicy: Retain
+
+  storageClassName: ""
+
+  hostPath:
+    path: /mnt/data/kube_ussdapp
+    type: DirectoryOrCreate
+
+---
+# ==========================================
+# PERSISTENT VOLUME CLAIM
+# ==========================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ussdapp1-pvc
+  namespace: default
+
+spec:
+  accessModes:
+    - ReadWriteMany
+
+  storageClassName: ""
+
+  resources:
+    requests:
+      storage: 3Gi
+
+  selector:
+    matchLabels:
+      name: ussdapp1-pv

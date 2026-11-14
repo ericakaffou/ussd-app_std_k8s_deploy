@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap
+data:
+  MYSQL_USERNAME: ussd_user
+  MYSQL_DATABASE: vasdb_ussd
